@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" DefaultTargets="Build" InitialTargets="EnsureWixToolsetInstalled" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
+    <DefineConstants>HarvestPath=E:\Source\Repos\GitHub\AppDynamicsCoreMetricsMonitor\AppDynamicsCoreMetricsMonitor\bin\x64\Release\</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">x86</Platform>
     <ProductVersion>3.10</ProductVersion>
@@ -19,6 +22,7 @@
     <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="HeatGeneratedFileList.wxs" />
     <Compile Include="Product.wxs" />
   </ItemGroup>
   <ItemGroup>
@@ -44,4 +48,7 @@
 	<Target Name="AfterBuild">
 	</Target>
 	-->
+  <Target Name="BeforeBuild">
+    <HeatDirectory Directory="E:\Source\Repos\GitHub\AppDynamicsCoreMetricsMonitor\AppDynamicsCoreMetricsMonitor\bin\x64\Release\" PreprocessorVariable="var.HarvestPath" OutputFile="HeatGeneratedFileList.wxs" ComponentGroupName="HeatGenerated" DirectoryRefId="INSTALLFOLDER" AutogenerateGuids="true" ToolPath="$(WixToolPath)" SuppressFragments="true" SuppressRegistry="true" SuppressRootDirectory="true" />
+  </Target>
 </Project>

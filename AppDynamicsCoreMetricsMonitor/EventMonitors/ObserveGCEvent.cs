@@ -22,17 +22,30 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
         /// <summary>
         /// Where all the output goes.  
         /// </summary>
-        //static TextWriter Out = new StreamWriter("e:\\Logs\\GCOutput.txt");
-        static TextWriter Out = Console.Out;
-        static Dictionary<string, List<int>> appPools = new Dictionary<string, List<int>>();
-        static Uri targetUri = new Uri(ConfigurationManager.AppSettings["AnalyticsListener"]);
-        public static void Run()
+        // TextWriter Out = new StreamWriter("e:\\Logs\\GCOutput.txt");
+         TextWriter Out = Console.Out;
+         Dictionary<string, List<int>> appPools = new Dictionary<string, List<int>>();
+         Uri targetUri = new Uri(ConfigurationManager.AppSettings["AnalyticsListener"]);
+         HttpClient client = new HttpClient();
+         //int count = 0;
+         List<MetricPackage> myMetrics = new List<MetricPackage>();
+
+        private MetricPackage CreateMetricPackage(string metric, long value)
+        {
+            return new MetricPackage() { aggregatorType = "AVERAGE", metricName = metric, value = value };
+        }
+
+        public void Run()
         {
 
             var monitoredAppPools = ConfigTools.GetConfiguredAppPools();
             var monitoredApps = ConfigTools.GetConfiguredApps();
             var console = Boolean.Parse(ConfigurationManager.AppSettings["ConsoleOutput"]);
             var api = Boolean.Parse(ConfigurationManager.AppSettings["APIOutput"]);
+
+            if (client == null)
+                client.BaseAddress = targetUri;
+
 
             if (TraceEventSession.IsElevated() != true)
             {
@@ -60,7 +73,7 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
                 Debugger.Break();
             }
 
-            var monitoringTimeSec = 60;
+            //var monitoringTimeSec = 60;
             //Console.WriteLine("The monitor will run for a maximum of {0} seconds", monitoringTimeSec);
             //Console.WriteLine("Press Ctrl-C to stop monitoring of GC Allocs");
 
@@ -78,23 +91,25 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
                 IObservable<GCAllocationTickTraceData> gcAllocStream = userSession.Source.Clr.Observe<GCAllocationTickTraceData>();
 
                 // Print the outgoing stream to the console
-                gcAllocStream.Subscribe(allocData => {
-                    if (GetProcessName(allocData.ProcessID) == "devenv")
-                    {
-                        //Out.WriteLine("GC Alloc  :  Proc: {0,10}({1,3}) Amount: {2,6:f1}K  TypeSample: {3}", GetProcessName(allocData.ProcessID), GetProcessCPU(allocData.ProcessID), allocData.AllocationAmount / 1000.0, allocData.TypeName);
-                    }
-                });
+                //gcAllocStream.Subscribe(allocData =>
+                //{
+                //    if (GetProcessName(allocData.ProcessID) == "devenv")
+                //    {
+                //        //Out.WriteLine("GC Alloc  :  Proc: {0,10}({1,3}) Amount: {2,6:f1}K  TypeSample: {3}", GetProcessName(allocData.ProcessID), GetProcessCPU(allocData.ProcessID), allocData.AllocationAmount / 1000.0, allocData.TypeName);
+                //    }
+                //});
 
                 // Create a stream of GC Collection events
                 IObservable<GCHeapStatsTraceData> gcCollectStream = userSession.Source.Clr.Observe<GCHeapStatsTraceData>();
 
                 // Print the outgoing stream to the console
-                gcCollectStream.Subscribe(collectData => {
+                gcCollectStream.Subscribe(collectData =>
+                {
                     var appName = GetProcessName(collectData.ProcessID);
+                    var metricsList = new List<MetricPackage>();
                     //Out.WriteLine("Application Name : {0}", appName);
                     if (DoesProcessIdExist(collectData.ProcessID))
                     {
-
                         var appPoolName = GetAppPoolName(collectData.ProcessID);
                         //Out.WriteLine("App Pool Name : {0}", appPoolName);
                         if (monitoredAppPools.Contains(appPoolName))
@@ -106,12 +121,13 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
                             var machineName = System.Environment.MachineName;
                             if (api)
                             {
-                                WriteLine(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}", machineName, appPoolName, "Memory Heap - Gen 0 Usage"), collectData.GenerationSize0);
-                                WriteLine(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}", machineName, appPoolName, "Memory Heap - Gen 1 Usage"), collectData.GenerationSize1);
-                                WriteLine(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}", machineName, appPoolName, "Memory Heap - Gen 2 Usage"), collectData.GenerationSize2);
-                                WriteLine(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}", machineName, appPoolName, "Large Object Heap - Current Usage"), collectData.GenerationSize3);
-                                WriteLine(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|Usage Metrics|{2}", machineName, appPoolName, "Current Usage"), memoryUsed);
-                                WriteLine(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|Usage Metrics|{2}", machineName, appPoolName, "Current Committed"), momoryCommitted);
+                                metricsList.Add(CreateMetricPackage(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}", machineName, appPoolName, "Memory Heap - Gen 0 Usage"), collectData.GenerationSize0));
+                                metricsList.Add(CreateMetricPackage(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}", machineName, appPoolName, "Memory Heap - Gen 1 Usage"), collectData.GenerationSize1));
+                                metricsList.Add(CreateMetricPackage(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}", machineName, appPoolName, "Memory Heap - Gen 2 Usage"), collectData.GenerationSize2));
+                                metricsList.Add(CreateMetricPackage(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}", machineName, appPoolName, "Large Object Heap - Current Usage"), collectData.GenerationSize3));
+                                metricsList.Add(CreateMetricPackage(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|Usage Metrics|{2}", machineName, appPoolName, "Current Usage"), memoryUsed));
+                                metricsList.Add(CreateMetricPackage(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|Usage Metrics|{2}", machineName, appPoolName, "Current Committed"), momoryCommitted));
+
                             }
                             if (console)
                             {
@@ -136,12 +152,13 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
 
                             if (api)
                             {
-                                WriteLine(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}", machineName, appName, "Memory Heap - Gen 0 Usage"), collectData.GenerationSize0);
-                                WriteLine(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}", machineName, appName, "Memory Heap - Gen 1 Usage"), collectData.GenerationSize1);
-                                WriteLine(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}", machineName, appName, "Memory Heap - Gen 2 Usage"), collectData.GenerationSize2);
-                                WriteLine(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}", machineName, appName, "Large Object Heap - Current Usage"), collectData.GenerationSize3);
-                                WriteLine(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|Usage Metrics|{2}", machineName, appName, "Current Usage"), memoryUsed);
-                                WriteLine(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|Usage Metrics|{2}", machineName, appName, "Current Committed"), momoryCommitted);
+
+                                metricsList.Add(CreateMetricPackage(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}", machineName, appName, "Memory Heap - Gen 0 Usage"), collectData.GenerationSize0));
+                                metricsList.Add(CreateMetricPackage(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}", machineName, appName, "Memory Heap - Gen 1 Usage"), collectData.GenerationSize1));
+                                metricsList.Add(CreateMetricPackage(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}", machineName, appName, "Memory Heap - Gen 2 Usage"), collectData.GenerationSize2));
+                                metricsList.Add(CreateMetricPackage(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}", machineName, appName, "Large Object Heap - Current Usage"), collectData.GenerationSize3));
+                                metricsList.Add(CreateMetricPackage(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|Usage Metrics|{2}", machineName, appName, "Current Usage"), memoryUsed));
+                                metricsList.Add(CreateMetricPackage(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|Usage Metrics|{2}", machineName, appName, "Current Committed"), momoryCommitted));
                             }
                             if (console)
                             {
@@ -161,7 +178,9 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
                         //         collectData.GenerationSize1 / 1000000.0,
                         //         collectData.GenerationSize2 / 1000000.0,
                         //         collectData.GenerationSize3 / 1000000.0);
-                    }                   
+                    }
+                    if (metricsList.Count > 0)
+                        WriteLines(metricsList);
                 });
 
                 //IObservable<long> timer = Observable.Timer(new TimeSpan(0, 0, monitoringTimeSec));
@@ -176,9 +195,9 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
             }
 
             Console.WriteLine("Done with program.");
-        }
 
-        private static bool DoesProcessIdExist(int processID)
+        }
+        private bool DoesProcessIdExist(int processID)
         {
             var result = false;
             foreach (var ap in appPools)
@@ -189,7 +208,7 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
             }
             return result;
         }
-        private static string GetAppPoolName(int processID)
+        private  string GetAppPoolName(int processID)
         {
             var result = string.Empty;
             foreach (var ap in appPools)
@@ -204,7 +223,7 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
         /// <summary>
         /// Returns the process name for a given process ID
         /// </summary>
-        private static string GetProcessName(int processID)
+        private  string GetProcessName(int processID)
         {
             // Only keep the cache for 10 seconds to avoid issues with process ID reuse.  
             var now = DateTime.UtcNow;
@@ -226,8 +245,9 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
             }
             return ret;
         }
-        private static float GetProcessCPU(int processID)
+        private  float GetProcessCPU(int processID)
         {
+            
             var process = Process.GetProcessById(processID);
 
             var total_cpu = new PerformanceCounter("Processor", "% Processor Time", "_Total");
@@ -237,42 +257,72 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
             return processUsage;
 
         }
-        private static Dictionary<int, string> s_processNameCache = new Dictionary<int, string>();
-        private static DateTime s_processNameCacheLastUpdate;
+        private  Dictionary<int, string> s_processNameCache = new Dictionary<int, string>();
+        private  DateTime s_processNameCacheLastUpdate;
 
-        private async static void WriteLine(string metric, long value)
+
+        private async  void WritetoAppD(List<MetricPackage> myMetrics)
         {
-            var myMetrics = new List<MetricPackage>();
-            myMetrics.Add( new MetricPackage() { aggregatorType = "AVERAGE", metricName = metric, value = value });
-            //try
-            //{
-            using (HttpClient client = new HttpClient())
+            try
             {
-                client.BaseAddress = targetUri;
-  //              string requestUri = string.Format("machineagent/metrics?name={0}&value={1}&type=average", metric, value);
+                if (client == null)
+                {
+                    client = new HttpClient();
+                }
+
+                if (client.BaseAddress != targetUri)
+                {
+                    client.BaseAddress = targetUri;
+                }
+
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-                //                HttpResponseMessage response = await client.GetAsync(requestUri);
-                HttpResponseMessage response = await client.PostAsJsonAsync(@"api/v1/metrics", myMetrics.ToArray());
-                //Out.WriteLine("Sent metric, response code {0}" ,response.StatusCode);
-            }
                 
-            //}
-            //catch(Exception ex)
-            //{
-            //    Out.WriteLine("Error : {0}", ex.Message);
-            //}
+                HttpResponseMessage response = await client.PostAsJsonAsync(@"api/v1/metrics", myMetrics.ToArray());
+                Out.WriteLine("Sent {0} metrics with status code {1}",myMetrics.Count, response.StatusCode);
+                if(response.StatusCode == HttpStatusCode.RequestEntityTooLarge)
+                {
+                    Out.WriteLine(response.ReasonPhrase);
+                    Out.WriteLine("Response Content : {0} \n requestContent : {1}",response.Content.ToString(), response.RequestMessage.Content.ToString());
+                }
+            }
+            catch (Exception ex)
+            {
+                Out.WriteLine("Error : {0}", ex.Message);
+            }
+        }
+        private void WriteLines(List<MetricPackage> metrics)
+        {
+            WritetoAppD(metrics);
         }
 
+        //private   void WriteLine(string metric, long value)
+        //{
+            
+        //    var obj = new object();
+        //    lock (obj)
+        //    {
+        //        count++;
+        //        //List<MetricPackage> myMetrics = new List<MetricPackage>();
+        //        myMetrics.Add(new MetricPackage() { aggregatorType = "AVERAGE", metricName = metric, value = value });
+        //        if (count > 10)
+        //        {
+        //            WritetoAppD(myMetrics);
+        //            myMetrics.Clear();
+        //            count = 0;
+        //        }
+        //    }
+        //}
+
         #region Console CtrlC handling
-        private static bool s_bCtrlCExecuted;
-        private static ConsoleCancelEventHandler s_CtrlCHandler;
+        private  bool s_bCtrlCExecuted;
+        private  ConsoleCancelEventHandler s_CtrlCHandler;
         /// <summary>
         /// This implementation allows one to call this function multiple times during the
         /// execution of a console application. The CtrlC handling is disabled when Ctrl-C 
         /// is typed, one will need to call this method again to re-enable it.
         /// </summary>
         /// <param name="action"></param>
-        private static void SetupCtrlCHandler(Action action)
+        private  void SetupCtrlCHandler(Action action)
         {
             s_bCtrlCExecuted = false;
             // uninstall previous handler

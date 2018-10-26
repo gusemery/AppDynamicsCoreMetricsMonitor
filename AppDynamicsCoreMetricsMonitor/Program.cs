@@ -13,7 +13,8 @@ namespace AppDynamicsCoreMetricsMonitor
     {
         static void Main(string[] args)
         {
-            ObserveGCEvents.Run();
+            var ob = new ObserveGCEvents();
+            ob.Run();
             Console.ReadKey();
         }
         private static string GetpIDs(List<int> values)

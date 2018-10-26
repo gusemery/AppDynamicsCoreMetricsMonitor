@@ -26,7 +26,7 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
          TextWriter Out = Console.Out;
          Dictionary<string, List<int>> appPools = new Dictionary<string, List<int>>();
          Uri targetUri = new Uri(ConfigurationManager.AppSettings["AnalyticsListener"]);
-         HttpClient client = new HttpClient();
+         //HttpClient client = new HttpClient();
          //int count = 0;
          List<MetricPackage> myMetrics = new List<MetricPackage>();
 
@@ -42,9 +42,6 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
             var monitoredApps = ConfigTools.GetConfiguredApps();
             var console = Boolean.Parse(ConfigurationManager.AppSettings["ConsoleOutput"]);
             var api = Boolean.Parse(ConfigurationManager.AppSettings["APIOutput"]);
-
-            if (client == null)
-                client.BaseAddress = targetUri;
 
 
             if (TraceEventSession.IsElevated() != true)
@@ -265,30 +262,32 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
         {
             try
             {
-                if (client == null)
+                using (var client = new HttpClient())
                 {
-                    client = new HttpClient();
-                }
+                    if (client.BaseAddress != targetUri)
+                    {
+                        client.BaseAddress = targetUri;
+                    }
 
-                if (client.BaseAddress != targetUri)
-                {
-                    client.BaseAddress = targetUri;
-                }
+                    client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-                
-                HttpResponseMessage response = await client.PostAsJsonAsync(@"api/v1/metrics", myMetrics.ToArray());
-                Out.WriteLine("Sent {0} metrics with status code {1}",myMetrics.Count, response.StatusCode);
-                if(response.StatusCode == HttpStatusCode.RequestEntityTooLarge)
-                {
-                    Out.WriteLine(response.ReasonPhrase);
-                    Out.WriteLine("Response Content : {0} \n requestContent : {1}",response.Content.ToString(), response.RequestMessage.Content.ToString());
+                    HttpResponseMessage response = await client.PostAsJsonAsync(@"api/v1/metrics", myMetrics.ToArray());
+                    Out.WriteLine("Sent {0} metrics with status code {1}", myMetrics.Count, response.StatusCode);
+                    if (response.StatusCode == HttpStatusCode.RequestEntityTooLarge)
+                    {
+                        Out.WriteLine("Error : {0}", response.StatusCode);
+                        foreach (var item in myMetrics)
+                        {
+                            Out.WriteLine(string.Format("Metric : {0} \nValue : {1}", item.metricName, item.value));
+                        }
+                    }
                 }
             }
             catch (Exception ex)
             {
                 Out.WriteLine("Error : {0}", ex.Message);
             }
+
         }
         private void WriteLines(List<MetricPackage> metrics)
         {

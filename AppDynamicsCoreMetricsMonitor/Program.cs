@@ -15,7 +15,7 @@ namespace AppDynamicsCoreMetricsMonitor
         {
             var ob = new ObserveGCEvents();
             ob.Run();
-            Console.ReadKey();
+            //Console.ReadKey();
         }
         private static string GetpIDs(List<int> values)
         {
@@ -29,22 +29,6 @@ namespace AppDynamicsCoreMetricsMonitor
         private static void Dictionary(string v, List<int> list)
         {
             throw new NotImplementedException();
-        }
-
-        private static void GetConfigurationUsingSectionGroup()
-        {
-            var PostSetting = ConfigurationManager.GetSection("BlogGroup/PostSetting") as NameValueCollection;
-            if (PostSetting.Count == 0)
-            {
-                Console.WriteLine("Post Settings are not defined");
-            }
-            else
-            {
-                foreach (var key in PostSetting.AllKeys)
-                {
-                    Console.WriteLine(key + " = " + PostSetting[key]);
-                }
-            }
         }
     }
 }

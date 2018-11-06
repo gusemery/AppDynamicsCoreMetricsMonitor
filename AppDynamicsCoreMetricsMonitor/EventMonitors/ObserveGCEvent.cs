@@ -232,27 +232,38 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
             if (!s_processNameCache.TryGetValue(processID, out ret))
             {
                 Process proc = null;
-                try { proc = Process.GetProcessById(processID); }
+                try { proc = Process.GetProcessById(processID);
+
+                    if (proc != null)
+                        ret = proc.ProcessName;
+                    if (string.IsNullOrWhiteSpace(ret))
+                        ret = processID.ToString();
+                    s_processNameCache.Add(processID, ret);
+                }
                 catch (Exception) { }
-                if (proc != null)
-                    ret = proc.ProcessName;
-                if (string.IsNullOrWhiteSpace(ret))
-                    ret = processID.ToString();
-                s_processNameCache.Add(processID, ret);
+                finally { proc.Dispose(); }
             }
             return ret;
         }
         private  float GetProcessCPU(int processID)
         {
-            
-            var process = Process.GetProcessById(processID);
 
+            var process = Process.GetProcessById(processID);
             var total_cpu = new PerformanceCounter("Processor", "% Processor Time", "_Total");
             var process_cpu = new PerformanceCounter("Process", "% Processor Time", GetProcessName(processID));
-            var processUsage = (total_cpu.NextValue() / 100) * process_cpu.NextValue(); // process_cpu.NextValue() / Environment.ProcessorCount;
-            var process_cpu_usage = (total_cpu.NextValue() / 100) * process_cpu.NextValue();
+            float processUsage = float.MinValue;
+            try
+            {
+                processUsage = (total_cpu.NextValue() / 100) * process_cpu.NextValue(); // process_cpu.NextValue() / Environment.ProcessorCount;
+                //var process_cpu_usage = (total_cpu.NextValue() / 100) * process_cpu.NextValue();
+                
+            }
+            finally
+            {
+                total_cpu.Dispose();
+                process_cpu.Dispose();
+            }
             return processUsage;
-
         }
         private  Dictionary<int, string> s_processNameCache = new Dictionary<int, string>();
         private  DateTime s_processNameCacheLastUpdate;
@@ -271,14 +282,16 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
 
                     client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-                    HttpResponseMessage response = await client.PostAsJsonAsync(@"api/v1/metrics", myMetrics.ToArray());
-                    Out.WriteLine("Sent {0} metrics with status code {1}", myMetrics.Count, response.StatusCode);
-                    if (response.StatusCode == HttpStatusCode.RequestEntityTooLarge)
-                    {
-                        Out.WriteLine("Error : {0}", response.StatusCode);
-                        foreach (var item in myMetrics)
+                    using(HttpResponseMessage response = await client.PostAsJsonAsync(@"api/v1/metrics", myMetrics.ToArray())){
+
+                        Out.WriteLine("Sent {0} metrics with status code {1}", myMetrics.Count, response.StatusCode);
+                        if (response.StatusCode == HttpStatusCode.RequestEntityTooLarge)
                         {
-                            Out.WriteLine(string.Format("Metric : {0} \nValue : {1}", item.metricName, item.value));
+                            Out.WriteLine("Error : {0}", response.StatusCode);
+                            foreach (var item in myMetrics)
+                            {
+                                Out.WriteLine(string.Format("Metric : {0} \nValue : {1}", item.metricName, item.value));
+                            }
                         }
                     }
                 }

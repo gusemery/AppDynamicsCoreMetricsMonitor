@@ -13,7 +13,7 @@ namespace AppDynamicsCoreMetricsMonitor.SupportingCode
             var appPoolSettings = ConfigurationManager.GetSection("MonitorSettings/appPools") as NameValueCollection;
             if (appPoolSettings.Count == 0)
             {
-                Console.WriteLine("Post Settings are not defined");
+                Console.WriteLine("AppPool Settings are not defined");
                 return new List<string>(); 
                 // throw new NotImplementedException("No app pools are defined for this application to monitor....");
             }
@@ -37,7 +37,7 @@ namespace AppDynamicsCoreMetricsMonitor.SupportingCode
             var appSettings = ConfigurationManager.GetSection("MonitorSettings/Applications") as NameValueCollection;
             if (appSettings.Count == 0)
             {
-                Console.WriteLine("Post Settings are not defined");
+                Console.WriteLine("App Settings are not defined");
                 return new List<string>();
                 //throw new NotImplementedException("No applications are defined for this application to monitor....");
             }

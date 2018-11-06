@@ -29,7 +29,7 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
          //HttpClient client = new HttpClient();
          //int count = 0;
          List<MetricPackage> myMetrics = new List<MetricPackage>();
-
+        string DEBUG_LEVEL = ConfigurationManager.AppSettings["DebugLevel"].ToUpperInvariant();
         private MetricPackage CreateMetricPackage(string metric, long value)
         {
             return new MetricPackage() { aggregatorType = "AVERAGE", metricName = metric, value = value };
@@ -102,13 +102,21 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
                 // Print the outgoing stream to the console
                 gcCollectStream.Subscribe(collectData =>
                 {
+
                     var appName = GetProcessName(collectData.ProcessID);
                     var metricsList = new List<MetricPackage>();
-                    //Out.WriteLine("Application Name : {0}", appName);
+                    
+
+                    if (DEBUG_LEVEL == "DEBUG")
+                        Out.WriteLine("Application Name : {0} is reporting in..", appName);
+
                     if (DoesProcessIdExist(collectData.ProcessID))
                     {
                         var appPoolName = GetAppPoolName(collectData.ProcessID);
-                        //Out.WriteLine("App Pool Name : {0}", appPoolName);
+
+                        if (DEBUG_LEVEL == "DEBUG")
+                            Out.WriteLine("App Pool Name : {0}", appPoolName);
+
                         if (monitoredAppPools.Contains(appPoolName))
                         {
                             int pid = collectData.ProcessID;
@@ -124,7 +132,7 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
                                 metricsList.Add(CreateMetricPackage(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}", machineName, appPoolName, "Large Object Heap - Current Usage"), collectData.GenerationSize3));
                                 metricsList.Add(CreateMetricPackage(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|Usage Metrics|{2}", machineName, appPoolName, "Current Usage"), memoryUsed));
                                 metricsList.Add(CreateMetricPackage(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|Usage Metrics|{2}", machineName, appPoolName, "Current Committed"), momoryCommitted));
-
+                                
                             }
                             if (console)
                             {
@@ -284,10 +292,14 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
 
                     using(HttpResponseMessage response = await client.PostAsJsonAsync(@"api/v1/metrics", myMetrics.ToArray())){
 
-                        Out.WriteLine("Sent {0} metrics with status code {1}", myMetrics.Count, response.StatusCode);
+                        if(DEBUG_LEVEL=="INFO" | DEBUG_LEVEL == "DEBUG")
+                            Out.WriteLine("Sent {0} metrics with status code {1}", myMetrics.Count, response.StatusCode);
+
                         if (response.StatusCode == HttpStatusCode.RequestEntityTooLarge)
                         {
-                            Out.WriteLine("Error : {0}", response.StatusCode);
+                            if (DEBUG_LEVEL == "INFO" | DEBUG_LEVEL == "DEBUG")
+                                Out.WriteLine("Error : {0}", response.StatusCode);
+
                             foreach (var item in myMetrics)
                             {
                                 Out.WriteLine(string.Format("Metric : {0} \nValue : {1}", item.metricName, item.value));
@@ -298,7 +310,8 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
             }
             catch (Exception ex)
             {
-                Out.WriteLine("Error : {0}", ex.Message);
+                if (DEBUG_LEVEL == "INFO" | DEBUG_LEVEL == "DEBUG")
+                    Out.WriteLine("Error : {0}", ex.Message);
             }
 
         }
@@ -307,24 +320,7 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
             WritetoAppD(metrics);
         }
 
-        //private   void WriteLine(string metric, long value)
-        //{
-            
-        //    var obj = new object();
-        //    lock (obj)
-        //    {
-        //        count++;
-        //        //List<MetricPackage> myMetrics = new List<MetricPackage>();
-        //        myMetrics.Add(new MetricPackage() { aggregatorType = "AVERAGE", metricName = metric, value = value });
-        //        if (count > 10)
-        //        {
-        //            WritetoAppD(myMetrics);
-        //            myMetrics.Clear();
-        //            count = 0;
-        //        }
-        //    }
-        //}
-
+ 
         #region Console CtrlC handling
         private  bool s_bCtrlCExecuted;
         private  ConsoleCancelEventHandler s_CtrlCHandler;

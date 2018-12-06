@@ -116,13 +116,15 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
 
                         if (DEBUG_LEVEL == "DEBUG")
                             Out.WriteLine("App Pool Name : {0}", appPoolName);
+                        
 
                         if (monitoredAppPools.Contains(appPoolName))
                         {
                             int pid = collectData.ProcessID;
                             Process toMonitor = Process.GetProcessById(pid);
+                            int threadCt = toMonitor.Threads.Count;
                             long memoryUsed = toMonitor.WorkingSet64;
-                            long momoryCommitted = toMonitor.PeakWorkingSet64;
+                            long memoryCommitted = toMonitor.PeakWorkingSet64;
                             var machineName = System.Environment.MachineName;
                             if (api)
                             {
@@ -131,8 +133,9 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
                                 metricsList.Add(CreateMetricPackage(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}", machineName, appPoolName, "Memory Heap - Gen 2 Usage"), collectData.GenerationSize2));
                                 metricsList.Add(CreateMetricPackage(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}", machineName, appPoolName, "Large Object Heap - Current Usage"), collectData.GenerationSize3));
                                 metricsList.Add(CreateMetricPackage(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|Usage Metrics|{2}", machineName, appPoolName, "Current Usage"), memoryUsed));
-                                metricsList.Add(CreateMetricPackage(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|Usage Metrics|{2}", machineName, appPoolName, "Current Committed"), momoryCommitted));
-                                
+                                metricsList.Add(CreateMetricPackage(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|Usage Metrics|{2}", machineName, appPoolName, "Current Committed"), memoryCommitted));
+                                metricsList.Add(CreateMetricPackage(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|Usage Metrics|{2}", machineName, appPoolName, "Thread Count"), threadCt));
+
                             }
                             if (console)
                             {
@@ -141,7 +144,8 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
                                 Out.WriteLine("name = Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}, value={3}", machineName, appPoolName, "Memory Heap - Gen 2 Usage", collectData.GenerationSize2);
                                 Out.WriteLine("name = Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}, value={3}", machineName, appPoolName, "Large Object Heap - Current Usage", collectData.GenerationSize3);
                                 Out.WriteLine("name = Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}, value={3}", machineName, appPoolName, "Current Usage", memoryUsed);
-                                Out.WriteLine("name = Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}, value={3}", machineName, appPoolName, "Current Committed", momoryCommitted);
+                                Out.WriteLine("name = Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}, value={3}", machineName, appPoolName, "Current Committed", memoryCommitted);
+                                Out.WriteLine("name = Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}, value={3}", machineName, appPoolName, "Thread Count", threadCt);
                             }
                         }
                     }
@@ -153,7 +157,7 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
                             int pid = collectData.ProcessID;
                             Process toMonitor = Process.GetProcessById(pid);
                             long memoryUsed = toMonitor.WorkingSet64;
-                            long momoryCommitted = toMonitor.PeakWorkingSet64;
+                            long memoryCommitted = toMonitor.PeakWorkingSet64;
 
                             if (api)
                             {
@@ -163,7 +167,7 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
                                 metricsList.Add(CreateMetricPackage(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}", machineName, appName, "Memory Heap - Gen 2 Usage"), collectData.GenerationSize2));
                                 metricsList.Add(CreateMetricPackage(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}", machineName, appName, "Large Object Heap - Current Usage"), collectData.GenerationSize3));
                                 metricsList.Add(CreateMetricPackage(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|Usage Metrics|{2}", machineName, appName, "Current Usage"), memoryUsed));
-                                metricsList.Add(CreateMetricPackage(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|Usage Metrics|{2}", machineName, appName, "Current Committed"), momoryCommitted));
+                                metricsList.Add(CreateMetricPackage(string.Format("Custom Metrics|Memory|Nodes|{0}|{1}|Usage Metrics|{2}", machineName, appName, "Current Committed"), memoryCommitted));
                             }
                             if (console)
                             {
@@ -172,7 +176,7 @@ namespace AppDynamicsCoreMetricsMonitor.EventMonitors
                                 Out.WriteLine("name=Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}, value={3}", machineName, appName, "Memory Heap - Gen 2 Usage", collectData.GenerationSize2);
                                 Out.WriteLine("name=Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}, value={3}", machineName, appName, "Large Object Heap - Current Usage", collectData.GenerationSize3);
                                 Out.WriteLine("name=Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}, value={3}", machineName, appName, "Current Usage", memoryUsed);
-                                Out.WriteLine("name=Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}, value={3}", machineName, appName, "Current Committed", momoryCommitted);
+                                Out.WriteLine("name=Custom Metrics|Memory|Nodes|{0}|{1}|GC Metrics|{2}, value={3}", machineName, appName, "Current Committed", memoryCommitted);
                             }
                         }
 
